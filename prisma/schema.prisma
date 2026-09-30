@@ -1,3 +1,553 @@
 datasource db {
   provider = "postgresql"
 }
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============================================
+// USUARIOS Y AUTENTICACIÓN
+// ============================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  dentist              Dentist?
+  userRadiologyCenters UserRadiologyCenter[]
+  adminAudit           AuditLog[]
+
+  @@index([email])
+  @@index([role, isActive])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  RADIOLOGY_CENTER_ADMIN
+  RADIOLOGY_CENTER_STAFF
+  DENTIST
+}
+
+model UserRadiologyCenter {
+  id                String   @id @default(cuid())
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+
+  radiologyCenter   RadiologyCenter @relation(fields: [radiologyCenterId], references: [id], onDelete: Cascade)
+  radiologyCenterId String
+
+  @@unique([userId, radiologyCenterId])
+  @@index([userId])
+  @@index([radiologyCenterId])
+  @@map("user_radiology_centers")
+}
+
+// ============================================
+// ODONTÓLOGOS
+// ============================================
+
+model Dentist {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  phone           String?
+  specialty       String?
+  licenseNumber   String   @unique
+  taxId           String?  @unique
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId          String   @unique
+
+  dentistCenters  DentistCenter[]
+  orders          Order[]
+  commissionRules CommissionRule[]
+  bankAccounts    DentistBankAccount[]
+
+  @@index([email])
+  @@index([licenseNumber])
+  @@index([isActive])
+  @@map("dentists")
+}
+
+model DentistBankAccount {
+  id                  String   @id @default(cuid())
+  bankName            String
+  accountType         String
+  accountNumber       String
+  beneficiaryName     String
+  beneficiaryIdNumber String
+  isActive            Boolean  @default(true)
+  validFrom           DateTime @default(now())
+  validTo             DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  dentist             Dentist  @relation(fields: [dentistId], references: [id], onDelete: Restrict)
+  dentistId           String
+
+  commissionPayments  CommissionPayment[]
+
+  @@unique([dentistId, accountNumber, validFrom])
+  @@index([dentistId, isActive])
+  @@index([dentistId])
+  @@map("dentist_bank_accounts")
+}
+
+// ============================================
+// CENTROS DE RADIOLOGÍA
+// ============================================
+
+model RadiologyCenter {
+  id          String   @id @default(cuid())
+  name        String
+  taxId       String   @unique
+  address     String?
+  phone       String?
+  email       String?  @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  userRadiologyCenters UserRadiologyCenter[]
+  dentistCenters       DentistCenter[]
+  examPrices           ExamPrice[]
+  orders               Order[]
+  commissionRules      CommissionRule[]
+  paymentBatches       PaymentBatch[]
+  sequences            Sequence[]
+
+  @@index([taxId])
+  @@index([isActive])
+  @@map("radiology_centers")
+}
+
+// ============================================
+// SECUENCIAS PARA NÚMEROS SECUENCIALES
+// ============================================
+
+model Sequence {
+  id                String   @id @default(cuid())
+  sequenceType      SequenceType
+  currentValue      BigInt   @default(0)
+  radiologyCenter   RadiologyCenter @relation(fields: [radiologyCenterId], references: [id], onDelete: Restrict)
+  radiologyCenterId String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([radiologyCenterId, sequenceType])
+  @@index([radiologyCenterId])
+  @@map("sequences")
+}
+
+enum SequenceType {
+  ORDER_NUMBER
+  BATCH_NUMBER
+}
+
+// ============================================
+// RELACIÓN DENTIST ↔ RADIOLOGY_CENTER
+// ============================================
+
+model DentistCenter {
+  id                String   @id @default(cuid())
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  dentist           Dentist          @relation(fields: [dentistId], references: [id], onDelete: Restrict)
+  dentistId         String
+
+  radiologyCenter   RadiologyCenter  @relation(fields: [radiologyCenterId], references: [id], onDelete: Restrict)
+  radiologyCenterId String
+
+  @@unique([dentistId, radiologyCenterId])
+  @@index([dentistId])
+  @@index([radiologyCenterId])
+  @@map("dentist_centers")
+}
+
+// ============================================
+// PACIENTES
+// ============================================
+
+model Patient {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  document  String?  @unique
+  birthDate DateTime?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  orders Order[]
+
+  @@index([document])
+  @@index([isActive])
+  @@map("patients")
+}
+
+// ============================================
+// EXÁMENES Y PRECIOS
+// ============================================
+
+model Exam {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  code            String?  @unique
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  examPrices      ExamPrice[]
+  commissionRules CommissionRule[]
+  orderExams      OrderExam[]
+
+  @@index([code])
+  @@index([isActive])
+  @@map("exams")
+}
+
+model ExamPrice {
+  id                String   @id @default(cuid())
+  price             Decimal  @db.Decimal(10, 2)
+  isActive          Boolean  @default(true)
+  validFrom         DateTime @default(now())
+  validTo           DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  exam              Exam             @relation(fields: [examId], references: [id], onDelete: Restrict)
+  examId            String
+
+  radiologyCenter   RadiologyCenter  @relation(fields: [radiologyCenterId], references: [id], onDelete: Restrict)
+  radiologyCenterId String
+
+  @@unique([examId, radiologyCenterId, validFrom])
+  @@index([examId])
+  @@index([radiologyCenterId])
+  @@index([radiologyCenterId, examId, validFrom, validTo])
+  @@map("exam_prices")
+}
+
+// ============================================
+// REGLAS DE COMISIÓN
+// ============================================
+
+model CommissionRule {
+  id                  String          @id @default(cuid())
+  commissionType      CommissionType
+  percentage          Decimal?        @db.Decimal(5, 2)
+  fixedAmount         Decimal?        @db.Decimal(10, 2)
+  validFrom           DateTime        @default(now())
+  validTo             DateTime?
+  isActive            Boolean         @default(true)
+  priority            Int             @default(0)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  radiologyCenter     RadiologyCenter @relation(fields: [radiologyCenterId], references: [id], onDelete: Restrict)
+  radiologyCenterId   String
+
+  exam                Exam            @relation(fields: [examId], references: [id], onDelete: Restrict)
+  examId              String
+
+  dentist             Dentist?        @relation(fields: [dentistId], references: [id], onDelete: Restrict)
+  dentistId           String?
+
+  commissions         Commission[]
+  orderExams          OrderExam[]
+
+  @@unique([radiologyCenterId, examId, dentistId, validFrom])
+  @@index([radiologyCenterId])
+  @@index([examId])
+  @@index([dentistId])
+  @@index([radiologyCenterId, examId, dentistId, validFrom, validTo])
+  @@index([isActive])
+  @@map("commission_rules")
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED
+  NONE
+}
+
+// ============================================
+// ÓRDENES
+// ============================================
+
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique
+  status          OrderStatus   @default(PENDING)
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  completedAt     DateTime?
+
+  patient         Patient       @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  patientId       String
+
+  dentist         Dentist       @relation(fields: [dentistId], references: [id], onDelete: Restrict)
+  dentistId       String
+
+  radiologyCenter RadiologyCenter @relation(fields: [radiologyCenterId], references: [id], onDelete: Restrict)
+  radiologyCenterId String
+
+  orderExams      OrderExam[]
+
+  @@index([orderNumber])
+  @@index([patientId])
+  @@index([dentistId])
+  @@index([radiologyCenterId])
+  @@index([radiologyCenterId, dentistId])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model OrderExam {
+  id                String   @id @default(cuid())
+  quantity          Int      @default(1)
+  unitPrice         Decimal  @db.Decimal(10, 2)
+  discount          Decimal  @db.Decimal(10, 2)  @default(0)
+  subtotal          Decimal  @db.Decimal(10, 2)
+  
+  commissionType    CommissionType
+  commissionValue   Decimal  @db.Decimal(10, 2)
+  commissionAmount  Decimal  @db.Decimal(10, 2)
+  
+  status            OrderExamStatus @default(PENDING)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  order             Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderId           String
+
+  exam              Exam         @relation(fields: [examId], references: [id], onDelete: Restrict)
+  examId            String
+
+  commissionRule    CommissionRule? @relation(fields: [commissionRuleId], references: [id])
+  commissionRuleId  String?
+
+  examResult        ExamResult?
+  commission        Commission?
+
+  @@index([orderId])
+  @@index([examId])
+  @@index([status])
+  @@map("order_exams")
+}
+
+enum OrderExamStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================
+// RESULTADOS DE EXÁMENES
+// ============================================
+
+model ExamResult {
+  id                String   @id @default(cuid())
+  fileUrl           String?
+  fileType          String?
+  notes             String?
+  status            ExamResultStatus @default(PENDING)
+  completedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  orderExam         OrderExam @relation(fields: [orderExamId], references: [id], onDelete: Cascade)
+  orderExamId       String   @unique
+
+  @@map("exam_results")
+}
+
+enum ExamResultStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  REVIEWED
+}
+
+// ============================================
+// COMISIONES
+// ============================================
+
+model Commission {
+  id                  String            @id @default(cuid())
+  amount              Decimal           @db.Decimal(10, 2)
+  status              CommissionStatus  @default(PENDING)
+  notes               String?
+  approvedAt          DateTime?
+  approvedBy          String?
+  paidAt              DateTime?
+  cancelledAt         DateTime?
+  cancellationReason  String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  orderExam           OrderExam         @relation(fields: [orderExamId], references: [id], onDelete: Restrict)
+  orderExamId         String            @unique
+
+  commissionRule      CommissionRule    @relation(fields: [commissionRuleId], references: [id])
+  commissionRuleId    String
+
+  payments            CommissionPayment[]
+
+  @@index([orderExamId])
+  @@index([status])
+  @@index([status, createdAt])
+  @@index([approvedAt])
+  @@map("commissions")
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+// ============================================
+// PAGOS Y LOTES
+// ============================================
+
+model PaymentBatch {
+  id                String              @id @default(cuid())
+  batchNumber       String              @unique
+  description       String?
+  totalAmount       Decimal             @db.Decimal(12, 2)
+  totalCount        Int                 @default(0)
+  exportFormat      String?
+  bankName          String?
+  exportFilePath    String?
+  status            PaymentBatchStatus  @default(DRAFT)
+  generatedAt       DateTime?
+  exportedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  radiologyCenter   RadiologyCenter     @relation(fields: [radiologyCenterId], references: [id], onDelete: Restrict)
+  radiologyCenterId String
+
+  payments          CommissionPayment[]
+
+  @@index([batchNumber])
+  @@index([radiologyCenterId])
+  @@index([radiologyCenterId, status])
+  @@index([status, createdAt])
+  @@map("payment_batches")
+}
+
+enum PaymentBatchStatus {
+  DRAFT
+  GENERATED
+  EXPORTED
+  COMPLETED
+  CANCELLED
+}
+
+model CommissionPayment {
+  id                      String              @id @default(cuid())
+  amount                  Decimal             @db.Decimal(10, 2)
+  paymentMethod           String?
+  reference               String?
+  paymentDate             DateTime
+  status                  PaymentStatus       @default(PENDING)
+  notes                   String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  commission              Commission          @relation(fields: [commissionId], references: [id], onDelete: Restrict)
+  commissionId            String
+
+  paymentBatch            PaymentBatch        @relation(fields: [paymentBatchId], references: [id], onDelete: Restrict)
+  paymentBatchId          String
+
+  dentistBankAccount      DentistBankAccount  @relation(fields: [dentistBankAccountId], references: [id], onDelete: Restrict)
+  dentistBankAccountId    String
+
+  @@index([commissionId])
+  @@index([paymentBatchId])
+  @@index([dentistBankAccountId])
+  @@index([paymentDate])
+  @@index([status])
+  @@map("commission_payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ============================================
+// AUDITORÍA
+// ============================================
+
+model AuditLog {
+  id            String      @id @default(cuid())
+  entityType    String
+  entityId      String
+  action        AuditAction
+  oldValues     Json?
+  newValues     Json?
+  changedBy     String?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime    @default(now())
+
+  user          User?       @relation(fields: [userId], references: [id])
+  userId        String?
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([entityType, action, createdAt])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  APPROVE
+  PAY
+  CANCEL
+}
