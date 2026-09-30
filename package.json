@@ -1,27 +1,36 @@
-{
-  "name": "dental-platform",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "prisma skills sync || exit 0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/diegohidalgo276-dotcom/dental-platform.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/diegohidalgo276-dotcom/dental-platform/issues"
-  },
-  "homepage": "https://github.com/diegohidalgo276-dotcom/dental-platform#readme",
-  "dependencies": {
-    "@prisma/client": "^7.10.0",
-    "dotenv": "^18.0.5",
-    "prisma": "^7.10.0"
-  }
+﻿{
+    "name":  "dental-platform",
+    "version":  "1.0.0",
+    "description":  "",
+    "main":  "index.js",
+    "scripts":  {
+                    "test":  "echo \"Error: no test specified\" \u0026\u0026 exit 1",
+                    "postinstall":  "prisma skills sync || exit 0",
+                    "dev":  "tsx src/backend/server.ts"
+                },
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/diegohidalgo276-dotcom/dental-platform.git"
+                   },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "type":  "commonjs",
+    "bugs":  {
+                 "url":  "https://github.com/diegohidalgo276-dotcom/dental-platform/issues"
+             },
+    "homepage":  "https://github.com/diegohidalgo276-dotcom/dental-platform#readme",
+    "dependencies":  {
+                         "@prisma/client":  "^7.10.0",
+                         "dotenv":  "^18.0.5",
+                         "fastify":  "^5.12.5",
+                         "prisma":  "^7.10.0"
+                     },
+    "devDependencies":  {
+                            "@types/node":  "^26.6.3",
+                            "tsx":  "^4.23.15",
+                            "typescript":  "^7.0.2"
+                        }
 }
