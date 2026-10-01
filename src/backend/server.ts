@@ -1,4 +1,5 @@
-﻿import Fastify from "fastify";
+import Fastify from "fastify";
+import prisma from "./prisma/client";
 
 const app = Fastify({
   logger: true
@@ -12,6 +13,15 @@ app.get("/", async () => {
   };
 });
 
+app.get("/health/db", async () => {
+  await prisma.$queryRaw`SELECT 1`;
+
+  return {
+    database: "postgresql",
+    status: "connected"
+  };
+});
+
 const start = async () => {
   try {
     await app.listen({
@@ -20,8 +30,17 @@ const start = async () => {
     });
   } catch (error) {
     app.log.error(error);
+    await prisma.$disconnect();
     process.exit(1);
   }
 };
+
+const shutdown = async () => {
+  await app.close();
+  await prisma.$disconnect();
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 start();
