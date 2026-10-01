@@ -1,9 +1,21 @@
 ﻿import Fastify from "fastify";
+import fastifyJwt from "@fastify/jwt";
 import prisma from "./prisma/client";
 import { createUser } from "./services/user-service";
+import { authenticateUser } from "./services/auth-service";
+
+const jwtSecret = process.env.JWT_SECRET;
+
+if (!jwtSecret) {
+  throw new Error("JWT_SECRET no está definida");
+}
 
 const app = Fastify({
   logger: true
+});
+
+app.register(fastifyJwt, {
+  secret: jwtSecret
 });
 
 app.get("/", async () => {
@@ -63,6 +75,38 @@ app.post("/users", async (request, reply) => {
   });
 
   return reply.code(201).send(user);
+});
+
+app.post("/auth/login", async (request, reply) => {
+  const body = request.body as {
+    email?: string;
+    password?: string;
+  };
+
+  if (!body.email || !body.password) {
+    return reply.code(400).send({
+      error: "email y password son obligatorios"
+    });
+  }
+
+  const user = await authenticateUser(body.email, body.password);
+
+  if (!user) {
+    return reply.code(401).send({
+      error: "Credenciales inválidas"
+    });
+  }
+
+  const token = await app.jwt.sign({
+    sub: user.id,
+    email: user.email,
+    role: user.role
+  });
+
+  return reply.send({
+    token,
+    user
+  });
 });
 
 const start = async () => {
