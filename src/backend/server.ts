@@ -3,6 +3,7 @@ import fastifyJwt from "@fastify/jwt";
 import prisma from "./prisma/client";
 import { createUser } from "./services/user-service";
 import { authenticateUser } from "./services/auth-service";
+import { authenticate } from "./middlewares/auth";
 
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -35,23 +36,29 @@ app.get("/health/db", async () => {
   };
 });
 
-app.get("/users", async () => {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      isActive: true,
-      createdAt: true
-    },
-    orderBy: {
-      createdAt: "desc"
-    }
-  });
+app.get(
+  "/users",
+  {
+    preHandler: authenticate
+  },
+  async () => {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
 
-  return users;
-});
+    return users;
+  }
+);
 
 app.post("/users", async (request, reply) => {
   const body = request.body as {
