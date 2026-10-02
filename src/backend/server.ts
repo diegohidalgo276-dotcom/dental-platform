@@ -4,6 +4,7 @@ import prisma from "./prisma/client";
 import { createUser } from "./services/user-service";
 import { authenticateUser } from "./services/auth-service";
 import { authenticate } from "./middlewares/auth";
+import { requireRoles } from "./middlewares/role-guard";
 
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -60,7 +61,12 @@ app.get(
   }
 );
 
-app.post("/users", async (request, reply) => {
+app.post(
+  "/users",
+  {
+    preHandler: [authenticate, requireRoles(["ADMIN"])]
+  },
+  async (request, reply) => {
   const body = request.body as {
     email?: string;
     name?: string;
