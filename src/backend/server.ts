@@ -3,6 +3,7 @@ import fastifyJwt from "@fastify/jwt";
 import prisma from "./prisma/client";
 import { registerAuthRoutes } from "./routes/auth-routes";
 import { registerUserRoutes } from "./routes/user-routes";
+import { registerRadiologyCenterRoutes } from "./routes/radiology-center-routes";
 
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -20,6 +21,7 @@ app.register(fastifyJwt, {
 
 app.register(registerAuthRoutes);
 app.register(registerUserRoutes);
+app.register(registerRadiologyCenterRoutes);
 
 app.get("/", async () => {
   return {
