@@ -56,8 +56,8 @@ export async function listCommissionRules(
   page: number;
   limit: number;
 }> {
-  const page = Math.max(1, filters.page || 1);
-  const limit = Math.min(filters.limit || 20, 100);
+  const page = Math.max(1, Number.isInteger(filters.page) && filters.page! > 0 ? filters.page! : 1);
+  const limit = Math.max(1, Math.min(Number.isInteger(filters.limit) && filters.limit! > 0 ? filters.limit! : 20, 100));
   const skip = (page - 1) * limit;
 
   const where: Prisma.CommissionRuleWhereInput = {

@@ -4,7 +4,7 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "vitest run",
         "postinstall": "prisma skills sync || exit 0",
         "dev": "tsx src/backend/server.ts"
     },
@@ -34,6 +34,7 @@
         "@types/bcrypt": "^6.0.0",
         "@types/node": "^26.6.3",
         "tsx": "^4.23.15",
-        "typescript": "^7.0.2"
+        "typescript": "^7.0.2",
+        "vitest": "^2.1.8"
     }
 }
