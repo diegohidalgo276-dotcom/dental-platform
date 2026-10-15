@@ -10,6 +10,7 @@ import { registerExamRoutes } from "./routes/exam-routes";
 import { registerExamPriceRoutes } from "./routes/exam-price-routes";
 import { registerCommissionRuleRoutes } from "./routes/commission-rule-routes";
 import { registerOrderRoutes } from "./routes/order-routes";
+import { registerExamResultRoutes } from "./routes/exam-result-routes";
 
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -34,6 +35,7 @@ app.register(registerExamRoutes);
 app.register(registerExamPriceRoutes);
 app.register(registerCommissionRuleRoutes);
 app.register(registerOrderRoutes);
+app.register(registerExamResultRoutes);
 
 app.get("/", async () => {
   return {
