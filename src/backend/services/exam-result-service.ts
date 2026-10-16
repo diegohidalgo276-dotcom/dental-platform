@@ -81,26 +81,49 @@ export async function createExamResult(
     ? new Date()
     : null;
 
-  return prisma.examResult.create({
-    data: {
-      fileUrl: data.fileUrl,
-      fileType: data.fileType ?? null,
-      notes: data.notes ?? null,
-      status,
-      completedAt,
-      orderExamId: data.orderExamId,
-    },
-    select: {
-      id: true,
-      fileUrl: true,
-      fileType: true,
-      notes: true,
-      status: true,
-      completedAt: true,
-      createdAt: true,
-      updatedAt: true,
-      orderExamId: true,
-    },
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.examResult.create({
+      data: {
+        fileUrl: data.fileUrl,
+        fileType: data.fileType ?? null,
+        notes: data.notes ?? null,
+        status,
+        completedAt,
+        orderExamId: data.orderExamId,
+      },
+      select: {
+        id: true,
+        fileUrl: true,
+        fileType: true,
+        notes: true,
+        status: true,
+        completedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        orderExamId: true,
+      },
+    });
+
+    if (["COMPLETED", "REVIEWED"].includes(status)) {
+      await tx.orderExam.update({
+        where: { id: data.orderExamId },
+        data: { status: "COMPLETED" },
+      });
+
+      const orderExams = await tx.orderExam.findMany({
+        where: { orderId: orderExam.orderId },
+        select: { status: true },
+      });
+
+      if (orderExams.length > 0 && orderExams.every((orderExamItem) => orderExamItem.status === "COMPLETED")) {
+        await tx.order.update({
+          where: { id: orderExam.orderId },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        });
+      }
+    }
+
+    return result;
   });
 }
 
@@ -157,6 +180,7 @@ export async function updateExamResult(
 
   const updateData: Record<string, unknown> = {};
   let hasChanges = false;
+  const shouldCompleteOrderExam = data.status !== undefined && ["COMPLETED", "REVIEWED"].includes(data.status);
 
   if (data.fileUrl !== undefined) {
     updateData.fileUrl = data.fileUrl;
@@ -179,26 +203,53 @@ export async function updateExamResult(
     } else if (["PENDING", "PROCESSING"].includes(data.status)) {
       updateData.completedAt = null;
     }
+  } else if (shouldCompleteOrderExam && !existing.completedAt) {
+    updateData.completedAt = new Date();
+    hasChanges = true;
   }
 
-  if (!hasChanges) {
+  if (!hasChanges && !shouldCompleteOrderExam) {
     return getExamResultById(id);
   }
 
-  return prisma.examResult.update({
-    where: { id },
-    data: updateData,
-    select: {
-      id: true,
-      fileUrl: true,
-      fileType: true,
-      notes: true,
-      status: true,
-      completedAt: true,
-      createdAt: true,
-      updatedAt: true,
-      orderExamId: true,
-    },
+  return prisma.$transaction(async (tx) => {
+    const result = await tx.examResult.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        fileUrl: true,
+        fileType: true,
+        notes: true,
+        status: true,
+        completedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        orderExamId: true,
+      },
+    });
+
+    if (shouldCompleteOrderExam) {
+      const orderExam = await tx.orderExam.update({
+        where: { id: result.orderExamId },
+        data: { status: "COMPLETED" },
+        select: { orderId: true },
+      });
+
+      const orderExams = await tx.orderExam.findMany({
+        where: { orderId: orderExam.orderId },
+        select: { status: true },
+      });
+
+      if (orderExams.length > 0 && orderExams.every((orderExamItem) => orderExamItem.status === "COMPLETED")) {
+        await tx.order.update({
+          where: { id: orderExam.orderId },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        });
+      }
+    }
+
+    return result;
   });
 }
 
